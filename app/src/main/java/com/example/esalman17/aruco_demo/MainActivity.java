@@ -8,6 +8,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.opencv.android.BaseLoaderCallback;
@@ -24,7 +25,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     private static String TAG = "MainActivity";
     JavaCameraView javaCameraView;
+    TextView tvResult;
     Mat matFrame;
+    boolean loaded = false;
 
     // Used to load the 'native-lib' library on application startup.
     static {
@@ -32,7 +35,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     }
     //Native functions
     public native String stringFromJNI();
-    public native void detectMarker(long matAddrGray);
+    public native float[] detectMarker(long matAddrGray);
     public native void initializeDetector(int width, int height);
 
     BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -42,7 +45,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 case BaseLoaderCallback.SUCCESS:
                     Log.i(TAG, "OpenCV loaded successfully");
                     javaCameraView.setCameraIndex(0);
-                    javaCameraView.enableView();
+                    loaded = true;
                     break;
                 default:
                     super.onManagerConnected(status);
@@ -55,14 +58,32 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-
+        setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         // Permissions for Android 6+
         ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA}, 1);
+
         javaCameraView = findViewById(R.id.java_camera_view);
         javaCameraView.setVisibility(View.VISIBLE);
         javaCameraView.enableFpsMeter();
         javaCameraView.setCvCameraViewListener(this);
+        tvResult = findViewById(R.id.textView);
+
+        findViewById(R.id.buttonStart).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(loaded) {
+                    javaCameraView.enableView();
+                }
+            }
+        });
+        findViewById(R.id.buttonStop).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(loaded) {
+                    javaCameraView.disableView();
+                }
+            }
+        });
 
 
     }
@@ -107,7 +128,17 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         matFrame = inputFrame.rgba();
-        detectMarker(matFrame.getNativeObjAddr());
+        float result[] = detectMarker(matFrame.getNativeObjAddr());
+        if(result != null){
+            final String text = String.format("id:%d\nx=%.1f cm\ny=%.1f cm\nz=%.1f cm\nroll=%.1f\npitch=%.1f\nyaw=%.1f",
+                    (int)result[0], result[1]*-100, result[2]*100, result[3]*100, result[4], result[5], result[6]);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    tvResult.setText(text);
+                }
+            });
+        }
         return matFrame;
     }
     // -----------------------------------------------------------------------------------------------
@@ -120,11 +151,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // permission was granted, yay! Do the
-                    // contacts-related task you need to do.
                 } else {
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
                     Toast.makeText(MainActivity.this, "Permission denied to read your External storage", Toast.LENGTH_SHORT).show();
                 }
                 return;

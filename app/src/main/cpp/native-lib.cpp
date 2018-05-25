@@ -39,7 +39,7 @@ extern "C" {
         return env->NewStringUTF(hello.c_str());
     }
 
-    void JNICALL Java_com_example_esalman17_aruco_1demo_MainActivity_detectMarker(JNIEnv *env, jobject instance, jlong matAddrInput) {
+    jfloatArray JNICALL Java_com_example_esalman17_aruco_1demo_MainActivity_detectMarker(JNIEnv *env, jobject instance, jlong matAddrInput) {
         Mat &image = *(Mat *) matAddrInput;
         cvtColor(image, image, cv::COLOR_BGRA2BGR);
         vector< int > ids;
@@ -52,14 +52,25 @@ extern "C" {
             aruco::estimatePoseSingleMarkers(corners, markerLength, camMatrix, distCoeffs, rvecs, tvecs);
         }
         Mat rotM(3,3,CV_64FC1,0.0);
+        float res[7]={};
         for(unsigned int i = 0; i < ids.size(); i++){
             if(ids[i] == 0 || ids[i] == 1023) continue;
-            //aruco::drawAxis(image, camMatrix, distCoeffs, rvecs[i], tvecs[i],markerLength * 0.5f); //çok yavaşlatıyor
             Rodrigues(rvecs[i],rotM);
             Vec3f vec = rotationMatrixToEulerAngles(rotM);
-            LOGD("id=%d\tdistance=%.1fcm\troll,pitch,yaw=%.1f,%.1f,%.1f",ids[i],tvecs[i][2]*100,vec[0],vec[1],vec[2]);
+            //LOGD("id=%d\tdistance=%.1fcm\troll,pitch,yaw=%.1f,%.1f,%.1f",ids[i],tvecs[i][2]*100,vec[0],vec[1],vec[2]);
+            res[0] = ids[i];
+            res[1] = tvecs[i][0];
+            res[2] = tvecs[i][1];
+            res[3] = tvecs[i][2];
+            res[4] = vec[0];
+            res[5] = vec[1];
+            res[6] = vec[2];
+            break; // Take only 1 marker
         }
 
+        jfloatArray result = env->NewFloatArray(7);
+        env->SetFloatArrayRegion(result, 0, 7, res);
+        return result;
     }
 
     void JNICALL Java_com_example_esalman17_aruco_1demo_MainActivity_initializeDetector(JNIEnv *env, jobject instance, jint width, jint height) {
