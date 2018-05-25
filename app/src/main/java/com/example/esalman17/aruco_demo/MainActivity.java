@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     //Native functions
     public native String stringFromJNI();
     public native void detectMarker(long matAddrGray);
-    public native void initializeDetector();
+    public native void initializeDetector(int width, int height);
 
     BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -94,12 +94,14 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     public void onCameraViewStarted(int width, int height) {
         matFrame = new Mat(width, height, CvType.CV_8UC1);
         Log.i(TAG, "CameraView: width="+width+" height="+height);
-        initializeDetector();
+        initializeDetector(width, height);
     }
 
     @Override
     public void onCameraViewStopped() {
-        matFrame.release();
+        if(matFrame != null) {
+            matFrame.release();
+        }
     }
 
     @Override
